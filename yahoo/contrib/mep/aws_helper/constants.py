@@ -23,4 +23,4 @@ class AvailabilityZones(Enum):
 
 
 def target_lambda_arn(region, target):
-    return 'arn:aws:events:%s:628478040924:rule/%s' % (region, target)
+    return 'arn:aws:events:%s:<aws account number>:rule/%s' % (region, target)

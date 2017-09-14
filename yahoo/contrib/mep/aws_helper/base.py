@@ -29,27 +29,27 @@ class Utils:
             self.as_client = boto3.client('autoscaling', **aws)
 
             # Route53 Zone ID
-            self.r53_zoneid = 'ZXOUON97XTN3T'
+            self.r53_zoneid = ''
 
             # IAM profile needs to be associated with all ec2 instances
             # this enables instances the ability to query for tags without auth
             # as well as being able to run shell cmds via aws cli / boto3 sdk
-            self.iam_arn = 'arn:aws:iam::628478040924:instance-profile/yxs2-celery-worker'
+            self.iam_arn = ''
 
             # sns arn for sending alerts created for each ec2 instance
             # security groups are region specific
             if region == 'us-west-2':
-                self.dsg_workers = 'sg-82db5df9'
-                self.dsg_rmqapi = 'sg-bab8dec1'
-                self.sns_alarm = 'arn:aws:sns:us-west-2:628478040924:yxs2_celery'
+                self.dsg_workers = ''
+                self.dsg_rmqapi = ''
+                self.sns_alarm = '';
             elif region == 'us-east-2':
-                self.dsg_workers = 'sg-84f1bded'
-                self.dsg_rmqapi = 'sg-fea4f497'
-                self.sns_alarm = 'arn:aws:sns:us-east-2:628478040924:yxs2-celery'
+                self.dsg_workers = ''
+                self.dsg_rmqapi = ''
+                self.sns_alarm = ''
             elif region == 'us-east-1':
-                self.dsg_workers = 'sg-e9bb1e97'
-                self.dsg_rmqapi = 'sg-53be1b2d'
-                self.sns_alarm = 'arn:aws:sns:us-east-1:628478040924:yxs2-celery'
+                self.dsg_workers = ''
+                self.dsg_rmqapi = ''
+                self.sns_alarm = ''
 
         else:
             sys.exit('No region or tmp creds')
