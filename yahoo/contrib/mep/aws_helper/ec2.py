@@ -4,7 +4,6 @@ import re
 import sys
 import time
 import base
-import dateutil.parser as dp
 
 class Tools(base.Utils):
 
@@ -70,24 +69,6 @@ class Tools(base.Utils):
         )
         return response
 
-    # get latest AMI based on creation date
-    def get_latest_ami(self, values):
-        timestamp = int(time.time())
-        filters = [ { 'Name' : 'name', 'Values': [values] } ]
-
-        try:
-            response = self.client.describe_images(Filters = filters)
-        except self.botocore.exceptions.ClientError as e:
-            print e
-
-        amis = {}
-        for i in response['Images']:
-            creation = i['CreationDate']
-            ami_id = i['ImageId']
-            tdelta = timestamp - int(dp.parse(creation).strftime('%s'))
-            amis[ami_id] = tdelta
-
-        return min(amis, key=amis.get)
 
     # ec2 launch config
     def ec2_provision(self, region, component, host_count, host_type, host_name):

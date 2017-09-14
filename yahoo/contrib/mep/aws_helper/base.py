@@ -3,6 +3,8 @@
 import re
 import sys
 import boto3
+import time
+import dateutil.parser as dp
 
 class Utils:
     # So the libs will be avail
@@ -24,6 +26,7 @@ class Utils:
             self.s3resource = boto3.resource('s3', **aws)
             self.s3client = boto3.client('s3', **aws)
             self.r53_client = boto3.client('route53', **aws)
+            self.as_client = boto3.client('autoscaling', **aws)
 
             # Route53 Zone ID
             self.r53_zoneid = 'ZXOUON97XTN3T'
@@ -79,6 +82,27 @@ class Utils:
             ]
 
         return filter
+
+
+    # get latest AMI based on creation date
+    def get_latest_ami(self, values):
+        timestamp = int(time.time())
+        filters = [ { 'Name' : 'name', 'Values': [values] } ]
+
+        try:
+            response = self.client.describe_images(Filters = filters)
+        except self.botocore.exceptions.ClientError as e:
+            print e
+
+        amis = {}
+        for i in response['Images']:
+            creation = i['CreationDate']
+            ami_id = i['ImageId']
+            tdelta = timestamp - int(dp.parse(creation).strftime('%s'))
+            amis[ami_id] = tdelta
+
+        return min(amis, key=amis.get)
+
 
     # json formatting
     def json_pretty(self, json_obj):
