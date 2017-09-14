@@ -1,10 +1,14 @@
 #!/bin/env python
 
 import re
+import sys
 import boto3
+import time
+import dateutil.parser as dp
 
 class Utils:
-    # avail when instantiating new object
+    # So the libs will be avail
+    # when instantiating new object
     import botocore
     import sys
 
@@ -21,26 +25,31 @@ class Utils:
             self.resource = boto3.resource('ec2', **aws)
             self.s3resource = boto3.resource('s3', **aws)
             self.s3client = boto3.client('s3', **aws)
+            self.r53_client = boto3.client('route53', **aws)
+            self.as_client = boto3.client('autoscaling', **aws)
+
+            # Route53 Zone ID
+            self.r53_zoneid = ''
 
             # IAM profile needs to be associated with all ec2 instances
             # this enables instances the ability to query for tags without auth
             # as well as being able to run shell cmds via aws cli / boto3 sdk
-            self.iam_arn = 'iam role'
+            self.iam_arn = ''
 
             # sns arn for sending alerts created for each ec2 instance
             # security groups are region specific
             if region == 'us-west-2':
-                self.dsg_workers = 'security group'
-                self.dsg_rmqapi = 'security group'
-                self.sns_alarm = 'iam role'
+                self.dsg_workers = ''
+                self.dsg_rmqapi = ''
+                self.sns_alarm = '';
             elif region == 'us-east-2':
-                self.dsg_workers = 'security group'
-                self.dsg_rmqapi = 'security group'
-                self.sns_alarm = 'iam role'
+                self.dsg_workers = ''
+                self.dsg_rmqapi = ''
+                self.sns_alarm = ''
             elif region == 'us-east-1':
-                self.dsg_workers = 'security group'
-                self.dsg_rmqapi = 'security group'
-                self.sns_alarm = 'iam role'
+                self.dsg_workers = ''
+                self.dsg_rmqapi = ''
+                self.sns_alarm = ''
 
         else:
             sys.exit('No region or tmp creds')
@@ -73,6 +82,27 @@ class Utils:
             ]
 
         return filter
+
+
+    # get latest AMI based on creation date
+    def get_latest_ami(self, values):
+        timestamp = int(time.time())
+        filters = [ { 'Name' : 'name', 'Values': [values] } ]
+
+        try:
+            response = self.client.describe_images(Filters = filters)
+        except self.botocore.exceptions.ClientError as e:
+            print e
+
+        amis = {}
+        for i in response['Images']:
+            creation = i['CreationDate']
+            ami_id = i['ImageId']
+            tdelta = timestamp - int(dp.parse(creation).strftime('%s'))
+            amis[ami_id] = tdelta
+
+        return min(amis, key=amis.get)
+
 
     # json formatting
     def json_pretty(self, json_obj):

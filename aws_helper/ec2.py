@@ -4,7 +4,6 @@ import re
 import sys
 import time
 import base
-import dateutil.parser as dp
 
 class Tools(base.Utils):
 
@@ -70,29 +69,11 @@ class Tools(base.Utils):
         )
         return response
 
-    # get latest AMI based on creation date
-    def get_latest_ami(self, values):
-        timestamp = int(time.time())
-        filters = [ { 'Name' : 'name', 'Values': [values] } ]
-
-        try:
-            response = self.client.describe_images(Filters = filters)
-        except self.botocore.exceptions.ClientError as e:
-            print e
-
-        amis = {}
-        for i in response['Images']:
-            creation = i['CreationDate']
-            ami_id = i['ImageId']
-            tdelta = timestamp - int(dp.parse(creation).strftime('%s'))
-            amis[ami_id] = tdelta
-
-        return min(amis, key=amis.get)
 
     # ec2 launch config
     def ec2_provision(self, region, component, host_count, host_type, host_name):
-        ami_id_regex = '.+2-1*' if component == 'worker' else '.+rmq*'
-        s3_bucket = '%s-settings' % region
+        ami_id_regex = 'yxs2-1*' if component == 'worker' else 'yxs2-rmq*'
+        s3_bucket = 'yxs2-%s-settings' % region
         s3_key = 'rmq_master'
 
         # get AMI ID
@@ -137,10 +118,13 @@ class Tools(base.Utils):
 
             s3_put = self.s3resource.Object(s3_bucket, s3_key).put(Body = rmq_master_ip)
             print "Success" if s3_put['ResponseMetadata']['HTTPStatusCode'] == 200 else sys.exit("Failed")
+
+            # set tag cluster to 0 for post deploy clustering
+            self.create_tags(instance_ids, self.build_filter('cluster', '0', create=1))
         else:
             print "Getting Master RMQ IP from S3"
-            rmq_master = self.s3resource.Object(s3_bucket, s3_key).get()['Body'].read()
-            print "RMQ Master IP: %s" % rmq_master
+            rmq_master_ip = self.s3resource.Object(s3_bucket, s3_key).get()['Body'].read()
+            print "RMQ Master IP: %s" % rmq_master_ip
 
         # tag environment, active rmq and AMI ID
         try:
