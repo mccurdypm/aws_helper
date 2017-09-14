@@ -8,8 +8,7 @@ from setuptools import setup
 
 
 BASE_VERSION = '0.0.1'
-METADATA_FILENAME = 'yahoo/contrib/mep/aws_helper/' \
-                    'package_metadata.json'
+METADATA_FILENAME = 'package_metadata.json'
 BASEPATH = os.path.dirname(os.path.abspath(__file__))
 
 
@@ -99,14 +98,13 @@ if __name__ == '__main__':
         install_requires=requires,
         license='yahoo_internal',
         long_description=readme(),
-        name='yahoo.contrib.mep.aws_helper',
-        namespace_packages=['yahoo', 'yahoo.contrib', 'yahoo.contrib.mep'],
+        name='aws_helper',
+        namespace_packages=['aws_helper'],
         package_data={
-            'yahoo.contrib.mep.aws_helper': ['package_metadata.json']
+            'aws_helper': ['package_metadata.json']
         },
-        packages=['yahoo.contrib.mep.aws_helper'],
+        packages=['aws_helper'],
         scripts=scripts(),
-        url='http://git.corp.yahoo.com/pmccurdy/'
-            'yahoo.contrib.mep.aws_helper',
+        url='http://github.com/mccurdypm/aws_helper',
         version=version(METADATA_FILENAME)
     )
