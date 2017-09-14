@@ -1,0 +1,6 @@
+platform: python
+
+shared:
+    plugins:
+        test_results:
+            enabled: false

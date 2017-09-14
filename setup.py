@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 """
-Package setup file for python module
-aws_helper
+Package setup file for python module yahoo.contrib.aws_helper
 """
 import os
 import json
@@ -9,7 +8,7 @@ from setuptools import setup
 
 
 BASE_VERSION = '0.0.1'
-METADATA_FILENAME = 'aws_helper/' \
+METADATA_FILENAME = 'yahoo/contrib/mep/aws_helper/' \
                     'package_metadata.json'
 BASEPATH = os.path.dirname(os.path.abspath(__file__))
 
@@ -90,7 +89,7 @@ if __name__ == '__main__':
     # We're being run from the command line so call setup with our arguments
     setup(
         author='Phil McCurdy',
-        author_email='mccurdypm@mgail.com',
+        author_email='pmccurdy',
         classifiers=[
             'Operating System :: POSIX :: Linux',
             'Programming Language :: Python',
@@ -98,15 +97,16 @@ if __name__ == '__main__':
         description='Short description of this project',
         include_package_data=True,
         install_requires=requires,
-        license='MIT',
+        license='yahoo_internal',
         long_description=readme(),
-        name='aws_helper',
+        name='yahoo.contrib.mep.aws_helper',
+        namespace_packages=['yahoo', 'yahoo.contrib', 'yahoo.contrib.mep'],
         package_data={
-            'aws_helper': ['package_metadata.json']
+            'yahoo.contrib.mep.aws_helper': ['package_metadata.json']
         },
-        packages=['aws_helper'],
+        packages=['yahoo.contrib.mep.aws_helper'],
         scripts=scripts(),
-        url='http://github.com/mccurdypm/'
-            'aws_helper',
+        url='http://git.corp.yahoo.com/pmccurdy/'
+            'yahoo.contrib.mep.aws_helper',
         version=version(METADATA_FILENAME)
     )
