@@ -72,7 +72,7 @@ class Tools(base.Utils):
     def create_asg(self, component, asg_name, lc_name, min_size, max_size, env, region):
 
         s3_bucket = 'yxs2-%s-settings' % region
-        s3_key = 'rmq_master'
+        s3_key = ''
 
         asg_tags = []
         asg_tags.append(self.build_asg_tags(asg_name, 'env', 'stg_asg'))
