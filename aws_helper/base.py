@@ -4,7 +4,9 @@ import re
 import sys
 import boto3
 import time
-import dateutil.parser as dp
+from configparser import ConfigParser
+from botocore.client import Config
+from yahoo.contrib.mep.aws_helper.constants import *
 
 class Utils:
     # So the libs will be avail
@@ -13,47 +15,53 @@ class Utils:
     import sys
 
     def __init__(self, region):
-        if region:
+        aws = {}
+        if  'accessKeyId' in auth and len(auth) == 5:
             aws = {
-                'region_name' : region
+                'region_name' : auth['region'],
+                'aws_access_key_id' : auth['accessKeyId'],
+                'aws_secret_access_key' : auth['secretAccessKey'],
+                'aws_session_token' : auth['sessionToken']
             }
-
-            self.logs = boto3.client('logs',  **aws)
-            self.ssm = boto3.client('ssm', **aws)
-            self.alarm = boto3.client('cloudwatch', **aws)
-            self.client = boto3.client('ec2', **aws)
-            self.resource = boto3.resource('ec2', **aws)
-            self.s3resource = boto3.resource('s3', **aws)
-            self.s3client = boto3.client('s3', **aws)
-            self.r53_client = boto3.client('route53', **aws)
-            self.as_client = boto3.client('autoscaling', **aws)
-
-            # Route53 Zone ID
-            self.r53_zoneid = ''
-
-            # IAM profile needs to be associated with all ec2 instances
-            # this enables instances the ability to query for tags without auth
-            # as well as being able to run shell cmds via aws cli / boto3 sdk
-            self.iam_arn = ''
-
-            # sns arn for sending alerts created for each ec2 instance
-            # security groups are region specific
-            if region == 'us-west-2':
-                self.dsg_workers = ''
-                self.dsg_rmqapi = ''
-                self.sns_alarm = '';
-            elif region == 'us-east-2':
-                self.dsg_workers = ''
-                self.dsg_rmqapi = ''
-                self.sns_alarm = ''
-            elif region == 'us-east-1':
-                self.dsg_workers = ''
-                self.dsg_rmqapi = ''
-                self.sns_alarm = ''
-
+        elif 'region' in auth and len(auth) == 1:
+            aws['region_name'] = auth['region']
         else:
-            sys.exit('No region or tmp creds')
+            sys.exit('No region defined')
 
+        self.logs = boto3.client('logs',  **aws)
+        self.ssm = boto3.client('ssm', **aws)
+        self.alarm = boto3.client('cloudwatch', **aws)
+        self.client = boto3.client('ec2', **aws)
+        self.resource = boto3.resource('ec2', **aws)
+        self.s3resource = boto3.resource('s3', **aws)
+        self.s3client = boto3.client('s3', **aws)
+        self.r53_client = boto3.client('route53', **aws)
+        self.as_client = boto3.client('autoscaling', **aws)
+
+        # Route53 Zone ID
+        self.r53_zoneid = ''
+
+        # IAM profile needs to be associated with all ec2 instances
+        # this enables instances the ability to query for tags without auth
+        # as well as being able to run shell cmds via aws cli / boto3 sdk
+        self.iam_arn = ''
+
+        # sns arn for sending alerts created for each ec2 instance
+        # security groups are region specific
+        if auth['region'] == 'us-west-2':
+            self.dsg_workers = ''
+            self.dsg_rmqapi = ''
+            self.sns_alarm = '';
+        elif auth[region'] == 'us-east-2':
+            self.dsg_workers = ''
+            self.dsg_rmqapi = ''
+            self.sns_alarm = ''
+        elif auth['region'] == 'us-east-1':
+            self.dsg_workers = ''
+            self.dsg_rmqapi = ''
+            self.sns_alarm = ''
+            
+            
     # build tag filter for create/query
     # keyword args:
     #    -multi=1   = only returns a dict, for multiple queries.
@@ -92,18 +100,86 @@ class Utils:
         try:
             response = self.client.describe_images(Filters = filters)
         except self.botocore.exceptions.ClientError as e:
-            print e
+            print(e)
 
-        amis = {}
-        for i in response['Images']:
-            creation = i['CreationDate']
-            ami_id = i['ImageId']
-            tdelta = timestamp - int(dp.parse(creation).strftime('%s'))
-            amis[ami_id] = tdelta
+        amis = sorted(response['Images'], key=lambda sort: sort['CreationDate'])
+        if len(amis) > 0:
+            return amis[-1]['ImageId']
 
-        return min(amis, key=amis.get)
+    def parse_s3_ini(self, env, region, s3_bucket, s3_key, component, options):
+        ini_file = '/tmp/%s' % s3_key
 
+        self.s3resource.meta.client.download_file(s3_bucket, s3_key, ini_file)
+        component = component.upper()
+        parser = ConfigParser()
+        parser.read(ini_file)
 
+        if component in parser.sections():
+            for option in options:
+                parser.set(component, option, options[option])
+                with open(ini_file, 'wb') as config:
+                    parser.write(config)
+
+        elif component not in parser.sections():
+            parser.add_section(component)
+            for option in options:
+                parser.set(component, option, options[option])
+                with open(ini_file, 'wb') as config:
+                    parser.write(config)
+
+        self.s3resource.meta.client.upload_file(ini_file, s3_bucket, s3_key)
+        os.remove(ini_file)
+                  
+    def update_ip_r53healthcheck(self, hl_id, ip_address):
+        return  self.r53_client.update_health_check(
+            HealthCheckId = hl_id,
+            IPAddress = ip_address
+        )
+
+    def create_elb(self, region, name, proto, elb_port, instance_port):
+        return self.elb_client.create_load_balancer(
+            LoadBalancerName = name,
+            Listeners = [
+                {
+                    'Protocol': proto,
+                    'LoadBalancerPort': elb_port,
+                    'InstanceProtocol': proto,
+                    'InstancePort': instance_port
+                }
+            ],
+            AvailabilityZones = AvailabilityZones.get_region(region),
+            SecurityGroups=[
+                self.dsg_api
+            ]
+        )
+
+    def configure_elb_healthcheck(self, elb_name, target, interval, timeout, u_th, h_th):
+        return self.elb_client.configure_health_check(
+            LoadBalancerName = elb_name,
+            HealthCheck = {
+                'Target': target,
+                'Interval': interval,
+                'Timeout': timeout,
+                'UnhealthyThreshold': u_th,
+                'HealthyThreshold': h_th
+            }
+        )
+
+    def get_elb_instances(self, elb_name):
+        return self.elb_client.describe_instance_health(LoadBalancerName = elb_name)
+
+    def add_instance_elb(self, elb_name, instances):
+        return self.elb_client.register_instances_with_load_balancer(
+            LoadBalancerName = elb_name,
+            Instances = instances
+        )
+                  
+    def remove_instance_elb(self, elb_name, instances):
+        return self.elb_client.deregister_instances_from_load_balancer(
+            LoadBalancerName = elb_name,
+            Instances = instances
+        )
+                  
     # json formatting
     def json_pretty(self, json_obj):
         print json.dumps(json_obj, sort_keys=True, indent=4, separators=(',', ': '))
